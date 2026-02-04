@@ -9,7 +9,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 设置页面标题
-st.set_page_config(page_title="豪哥数据中心", page_icon="📱", layout="mobile")
+st.set_page_config(page_title="豪哥数据中心", page_icon="📱", layout="wide")
 
 # ================= 核心功能函数 =================
 
@@ -126,3 +126,4 @@ if uid_input:
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
         st.info("当前没有数据")
+
