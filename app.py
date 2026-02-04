@@ -8,22 +8,45 @@ import urllib3
 # 禁用安全警告
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# 设置页面标题
-st.set_page_config(page_title="豪哥数据中心", page_icon="📱", layout="wide")
+# ================= 1. 页面配置 (必须在第一行) =================
+st.set_page_config(
+    page_title="豪哥数据中心", 
+    page_icon="📱", 
+    layout="wide", # 这里的 wide 适配手机效果更好
+    initial_sidebar_state="collapsed" # 默认收起侧边栏，更像APP
+)
 
-# ================= 核心功能函数 =================
+# ================= 2. 注入CSS (美化 + 去广告) =================
+st.markdown("""
+    <style>
+    /* 1. 隐藏 Streamlit 自带的菜单、页脚、顶部红线 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* 2. 全局深色背景模拟 */
+    .stApp {
+        background-color: #0E1117;
+    }
+    
+    /* 3. 卡片样式优化 */
+    div[data-testid="stMetric"] {
+        background-color: #262730;
+        border: 1px solid #41444C;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    
+    /* 4. 关键数字颜色 */
+    /* 利润文字设为金色 */
+    div[data-testid="stMetricValue"] {
+        font-weight: bold;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-def get_crypto_prices():
-    usdt, usd = 0.0, 0.0
-    try:
-        r = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=cny", timeout=3, verify=False)
-        usdt = float(r.json()['tether']['cny'])
-    except: pass
-    try:
-        r2 = requests.get("https://open.er-api.com/v6/latest/USD", timeout=3, verify=False)
-        usd = float(r2.json()['rates']['CNY'])
-    except: pass
-    return usdt, usd
+# ================= 3. 核心功能函数 (逻辑不变) =================
 
 def get_team_factors(n, input_mul_a, input_mul_b):
     n = str(n).upper()
@@ -37,14 +60,8 @@ def get_team_factors(n, input_mul_a, input_mul_b):
 @st.cache_data(ttl=60)
 def fetch_data(uid, date_str):
     url = "http://111.170.156.82:83/get/group/webCollectTotalData"
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "user_ids": uid, "date": date_str,
-        "platform_type": "网页", "browser_type": "全部浏览器"
-    }
+    headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"}
+    payload = {"user_ids": uid, "date": date_str, "platform_type": "网页", "browser_type": "全部浏览器"}
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=10, verify=False)
         if resp.status_code != 200: return None, f"报错: {resp.status_code}"
@@ -64,12 +81,12 @@ def fetch_data(uid, date_str):
         return sorted([{'name': k, 'val': v} for k, v in team_map.items()], key=lambda x: x['val'], reverse=True), None
     except Exception as e: return None, str(e)
 
-# ================= 手机端界面 =================
+# ================= 4. 手机端界面布局 =================
 
-st.title("📱 豪哥数据中心")
+st.markdown("<h3 style='text-align: center; color: #E4E4E7;'>📱 豪哥数据中心</h3>", unsafe_allow_html=True)
 
-# 输入区域
-with st.expander("⚙️ 设置查询条件", expanded=True):
+# 输入区域 (用折叠栏收纳，保持界面整洁)
+with st.expander("🛠️ 点击设置查询条件", expanded=False):
     col1, col2 = st.columns(2)
     with col1:
         uid_input = st.text_input("Leader ID", value="wang")
@@ -82,7 +99,7 @@ with st.expander("⚙️ 设置查询条件", expanded=True):
     with col4:
         input_mul_b = st.number_input("到手价", 0.00, 1.00, 0.29, 0.01)
     
-    if st.button("🔍 开始查询", use_container_width=True, type="primary"):
+    if st.button("🚀 刷新查询", use_container_width=True, type="primary"):
         st.cache_data.clear()
 
 # 结果显示
@@ -113,17 +130,27 @@ if uid_input:
             
         hao_val = (total_val - c_t - c_r - c_e - c_j1 - c_bw) * 0.04 + (c_t * 0.015) + ((c_r + c_e + c_j1 + c_bw) * 0.33)
         
-        # 大字报显示（适合手机）
+        # === 核心数据看板 (美化版) ===
         st.markdown("---")
-        c1, c2 = st.columns(2)
-        c1.metric("王靖晗净利", f"¥{total_wang:.1f}")
-        c2.metric("豪哥净利", f"¥{hao_val:.1f}")
-        c3, c4 = st.columns(2)
-        c3.metric("总采集量", total_val)
-        c4.metric("项目总值", f"¥{total_val*0.33:.1f}")
         
-        st.write("📋 **团队明细**")
+        # 第一行：最关心的利润
+        c1, c2 = st.columns(2)
+        with c1:
+            st.metric("👑 王靖晗净利", f"¥{total_wang:.1f}")
+        with c2:
+            st.metric("💰 豪哥净利", f"¥{hao_val:.1f}")
+        
+        # 第二行：统计数据
+        st.markdown("<br>", unsafe_allow_html=True) # 加点空隙
+        c3, c4 = st.columns(2)
+        with c3:
+            st.metric("📊 总采集量", total_val)
+        with c4:
+            st.metric("📈 项目总值", f"¥{total_val*0.33:.1f}")
+        
+        # 详细表格
+        st.markdown("---")
+        st.markdown("<h5 style='color: #A1A1AA;'>📋 团队明细表</h5>", unsafe_allow_html=True)
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
         st.info("当前没有数据")
-
